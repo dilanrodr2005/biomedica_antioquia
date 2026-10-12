@@ -27,3 +27,14 @@ Variables: Servicio, Equipo, Marca, Modelo, Estado INVIMA, Proveedor y Especific
 
 ## Limitaciones
 Datos ficticios, sin base de datos ni usuarios; la configuración no se guarda al recargar. Los precios son de referencia y no sustituyen estudios de mercado.
+
+## Extensiones (js/extra.js)
+Agregan lo que faltaba frente a la propuesta, con datos de ejemplo:
+- **Ficha completa** del catálogo: los 18 campos de la Fase 2 más el estado INVIMA, y la aclaración de que la herramienta no obliga a comprar equipos o proveedores.
+- **Proyectos de Dotación (Adquisición):** etapa, presupuesto frente al valor de referencia del catálogo.
+- **Hoja de vida ampliada:** historial de mantenimientos, documentos, soporte y garantía, y registro de visitas.
+- **Planeación de Reposición:** equipos al final de su vida útil con costo estimado desde el catálogo.
+- **Indicadores y Mejora Continua:** metas, necesidades recurrentes, tendencia de precios e informe imprimible (PDF).
+- **Validación de Datos:** estado, fecha y responsable según la periodicidad configurada.
+- **Registro y Carga:** formularios de inventario y catálogo, y carga desde CSV. Se guarda en el navegador (localStorage).
+- **Vista por rol (simulada):** selector "Vista" en el encabezado (Secretaría o una ESE).
