@@ -1,14 +1,14 @@
 /* Estado, vistas (una función por módulo) y eventos. */
 /* ---------- Estado ---------- */
-const S={page:'dash',dq:'',dc:'',dr:'',dp:'',z:1,dg:30,av:1,per:'Trimestral',fc:{},fi:{},rep:'mant',sel:null};
+const S={page:'dash',dq:'',dc:'',dr:'',dp:'',z:1,dg:30,av:1,per:'Trimestral',fc:{},sel:null};
 const hoyS=()=>iso(HOY);
 function alertas(){
   const h=hoyS(), g=iso(add(HOY,S.dg)), v=iso(add(HOY,S.av*365));
-  return {mant:INV.filter(x=>x.pmant<h),gar:INV.filter(x=>x.fgar>=h&&x.fgar<=g),vida:INV.filter(x=>x.fvida<=v)};
+  return {gar:INV.filter(x=>x.fgar>=h&&x.fgar<=g),vida:INV.filter(x=>x.fvida<=v)};
 }
 const uniq=(a,k)=>[...new Set(a.map(x=>x[k]))].sort();
 const sel=(id,lab,opts,val)=>`<label>${lab}<select id="${id}"><option value="">Todos</option>${opts.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
-const estTag=e=>`<span class="tag ${e==='Operativo'||e==='Vigente'?'ok':e==='En mantenimiento'||e==='En renovación'?'w':'r'}">${e}</span>`;
+const estTag=e=>`<span class="tag ${e==='Operativo'||e==='Vigente'?'ok':e==='En renovación'?'w':'r'}">${e}</span>`;
 function table(cols,rows,click){
   return `<div class="tw"><table><thead><tr>${cols.map(c=>`<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${rows.map((r,i)=>`<tr ${click?`class="click" data-i="${i}" tabindex="0"`:''}>${cols.map(c=>`<td>${c[2]?c[2](r[c[0]],r):esc(r[c[0]])}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="9">Sin resultados con estos filtros. Prueba quitar alguno.</td></tr>'}</tbody></table></div>`;
 }
@@ -17,10 +17,27 @@ function csv(name,rows){
   const t=[k.join(','),...rows.map(r=>k.map(c=>'"'+String(r[c]).replace(/"/g,'""')+'"').join(','))].join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+t],{type:'text/csv'})); a.download=name; a.click();
 }
-function ficha(c){return `<div class="card ficha"><h3>${esc(c.equipo)} · ${esc(c.marca)} ${esc(c.modelo)}</h3><dl>
-<dt>Servicio</dt><dd>${c.servicio}</dd><dt>Proveedor</dt><dd>${c.proveedor}</dd><dt>Registro INVIMA</dt><dd>${estTag(c.invima)}</dd>
-<dt>Rango de precio</dt><dd>${fmt(c.pmin)} – ${fmt(c.pmax)} (actualizado ${c.fprecio})</dd><dt>Vida útil de referencia</dt><dd>${c.vida} años</dd>
-<dt>Especificaciones</dt><dd>${esc(c.spec)}</dd><dt>Accesorios</dt><dd>${esc(c.acc)}</dd><dt>Fuente</dt><dd>Cotización / estudio de mercado de referencia</dd></dl></div>`}
+/* Ficha técnica (18 campos). Incluye garantía y vida útil. */
+const SV={
+  'Imagenología':['Apoyo diagnóstico por imágenes','Sala adecuada, red eléctrica regulada y blindaje radiológico si aplica'],
+  'Urgencias':['Atención y estabilización de pacientes críticos','Toma eléctrica con respaldo y ubicación de fácil acceso'],
+  'Hospitalización':['Monitoreo y terapia de pacientes hospitalizados','Toma eléctrica regulada'],
+  'Cirugía':['Procedimientos quirúrgicos','Quirófano con red eléctrica de grado hospitalario y soporte de techo si aplica'],
+  'Laboratorio':['Análisis clínico de muestras','Mesón estable, red eléctrica regulada y desagüe si aplica'],
+  'Obstetricia':['Seguimiento materno-fetal','Toma eléctrica regulada'],
+  'Odontología':['Atención odontológica','Conexión eléctrica, aire comprimido y agua'],
+  'Esterilización':['Esterilización de instrumental y dispositivos','Agua, desagüe y red eléctrica según el equipo']};
+function ficha(c){
+  const v=SV[c.servicio]||['—','—'];
+  const obs=c.invima==='Vencido'?'Registro INVIMA vencido: verificar su renovación antes de formular el proyecto.':c.invima==='En renovación'?'Registro INVIMA en renovación: confirmar vigencia con el proveedor.':'Confirmar disponibilidad y vigencia del precio mediante estudio de mercado.';
+  const r=[['Tipo / nombre del equipo',c.equipo],['Categoría o grupo tecnológico',c.servicio],['Uso o finalidad',v[0]],['Marca y modelo',c.marca+' '+c.modelo],
+   ['Especificaciones técnicas',c.req.map((q,i)=>q[0]+': '+c.val[i]).join(' · ')],['Requisitos técnicos mínimos',c.req.map(q=>q[0]+': '+q[1]).join(' · ')],
+   ['Accesorios requeridos',c.acc],['Condiciones de instalación',v[1]],['Vida útil de referencia',c.vida+' años'],['Garantía de referencia',c.gar+(c.gar>1?' años':' año')+' (a cargo del proveedor)'],
+   ['Proveedor identificado',c.proveedor],['Registro INVIMA',estTag(c.invima),1],['Rango de precio de referencia',fmt(c.pmin)+' – '+fmt(c.pmax)],
+   ['Fecha de actualización del precio',c.fprecio],['Fuente de la información','Cotización / estudio de mercado de referencia'],['Observaciones técnicas',obs]];
+  return `<div class="card ficha"><h3>${esc(c.equipo)} · ${esc(c.marca)} ${esc(c.modelo)}</h3><dl>${r.map(x=>`<dt>${x[0]}</dt><dd>${x[2]?x[1]:esc(x[1])}</dd>`).join('')}</dl>
+  <p style="font-size:12px;color:var(--mut);margin:10px 0 0">Valores de referencia, sin carácter obligatorio. No sustituyen el estudio de mercado ni el proceso de contratación.</p></div>`;
+}
 
 /* ---------- Mapa SVG de subregiones ---------- */
 const SUBS=[
@@ -147,6 +164,9 @@ function initMap(){
 }
 
 const ICON={
+sheet:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 9v12"/>',
+valid:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5L16 9.5"/>',
+reg:'<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
 home:'<path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/>',
 grid:'<rect x="4" y="4" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1"/>',
 clip:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h6"/>',
@@ -168,14 +188,13 @@ function dashCards(){
   return r.map((c,i)=>`<div class="pc"><h4>${esc(c.equipo)}</h4><div class="row"><div class="ph">${IMG}</div><div class="tx"><b>${esc(c.marca+' '+c.modelo)}</b><span>INVIMA: ${c.invima}</span><span>${c.servicio}</span></div></div><button class="vf" data-f="${i}">Ver Ficha Técnica</button></div>`).join('')||'<p>Sin resultados. Quita algún filtro.</p>';
 }
 function acard(key,n,tit,icon,head,rows,dot){
-  return `<div class="acard" data-go="rep:${key}" tabindex="0" role="link" aria-label="${tit}"><div class="hd"><span class="num">${n}</span><span class="tt">${tit}</span>${AI[icon]}</div>
+  return `<div class="acard" aria-label="${tit}"><div class="hd"><span class="num">${n}</span><span class="tt">${tit}</span>${AI[icon]}</div>
   <div class="lst"><div><b>${head}</b></div>${rows.map(t=>`<div><span>${esc(t)}</span>${dot?'<i></i>':''}</div>`).join('')}</div></div>`;
 }
 function dash(){
   const a=alertas(), opt=(arr,lab,v)=>`<option value="">${lab}</option>`+arr.map(o=>`<option value="${o[0]}" ${String(o[0])===String(v)?'selected':''}>${esc(o[1])}</option>`).join('');
   return `<div class="sec" style="margin-top:0">Alertas Críticas de Inventario</div>
   <div class="agrid">
-   ${acard('mant',a.mant.length,'Mantenimientos Vencidos','w','ESE – Equipo',a.mant.map(x=>x.ese+' – '+x.equipo))}
    ${acard('gar',a.gar.length,`Garantías por Expirar (${S.dg} días)`,'c','ESE – Equipo',a.gar.map(x=>x.ese+' – '+x.equipo))}
    ${acard('vida',a.vida.length,'Equipos Próximos a Fin de Vida Útil','h','Equipos Próximos',a.vida.map(x=>x.equipo+' – '+x.ese),true)}
   </div>
@@ -189,58 +208,34 @@ function dash(){
 }
 
 function cat(){
-  const f=S.fc, r=CAT.filter(c=>(!f.servicio||c.servicio===f.servicio)&&(!f.marca||c.marca===f.marca)&&(!f.invima||c.invima===f.invima)&&(!f.proveedor||c.proveedor===f.proveedor)&&(!f.pmax||c.pmin<=+f.pmax));
+  const f=S.fc, r=CAT.filter(c=>(!f.servicio||c.servicio===f.servicio)&&(!f.equipo||c.equipo===f.equipo)&&(!f.marca||c.marca===f.marca)&&(!f.invima||c.invima===f.invima)&&(!f.proveedor||c.proveedor===f.proveedor)&&(!f.pmax||c.pmin<=+f.pmax));
   S._cat=r;
-  return `<div class="filters">${sel('servicio','Servicio',uniq(CAT,'servicio'),f.servicio)}${sel('marca','Marca',uniq(CAT,'marca'),f.marca)}${sel('invima','Estado registro INVIMA',uniq(CAT,'invima'),f.invima)}${sel('proveedor','Proveedor',uniq(CAT,'proveedor'),f.proveedor)}
+  const eqs=[...new Set(CAT.filter(c=>!f.servicio||c.servicio===f.servicio).map(c=>c.equipo))].sort();
+  return `<div class="filters">${sel('servicio','Servicio',uniq(CAT,'servicio'),f.servicio)}${sel('equipo','Equipo',eqs,f.equipo)}${sel('marca','Marca',uniq(CAT,'marca'),f.marca)}${sel('invima','Estado registro INVIMA',uniq(CAT,'invima'),f.invima)}${sel('proveedor','Proveedor',uniq(CAT,'proveedor'),f.proveedor)}
   <label>Precio desde máx. (COP)<input id="pmax" type="number" step="1000000" placeholder="Ej: 20000000" value="${f.pmax||''}"></label></div>
-  <p>${r.length} equipos · <button class="btn s" id="dl">Descargar CSV</button></p>
-  ${table([['servicio','Servicio'],['equipo','Equipo'],['marca','Marca'],['modelo','Modelo'],['invima','INVIMA',estTag],['proveedor','Proveedor'],['pmin','Rango',(v,c)=>fmt(c.pmin)+' – '+fmt(c.pmax)]],r,true)}
+  <p>${r.length} alternativas · <button class="btn s" id="dl">Descargar CSV</button>${f.equipo?` <button class="btn" data-mat="${esc(f.equipo)}">Llevar a la Matriz de Dotación</button>`:''}</p>
+  ${table([['servicio','Servicio'],['equipo','Equipo'],['marca','Marca'],['modelo','Modelo'],['invima','INVIMA',estTag],['proveedor','Proveedor'],['gar','Garantía',v=>v+(v>1?' años':' año')],['pmin','Rango',(v,c)=>fmt(c.pmin)+' – '+fmt(c.pmax)]],r,true)}
   <p style="color:var(--mut);font-size:13px">Seleccione una fila para ver la ficha técnica.</p>
   <div id="fch">${S.sel!=null&&r[S.sel]?ficha(r[S.sel]):''}</div>
-  <div class="note">Valores de referencia: no sustituyen los estudios de mercado ni los procesos de contratación.</div>`;
-}
-function inv(){
-  const f=S.fi, r=INV.filter(x=>(!f.ese||x.ese===f.ese)&&(!f.estado||x.estado===f.estado)&&(!f.servicio||x.servicio===f.servicio));
-  S._inv=r; const e=S.selI!=null&&r[S.selI];
-  return `<div class="filters">${sel('ese','ESE',uniq(INV,'ese'),f.ese)}${sel('estado','Estado operativo',uniq(INV,'estado'),f.estado)}${sel('servicio','Servicio',uniq(INV,'servicio'),f.servicio)}</div>
-  <p>${r.length} equipos</p>
-  ${table([['id','ID'],['ese','ESE'],['equipo','Equipo'],['marca','Marca'],['estado','Estado',estTag],['pmant','Próx. mant.'],['fvida','Fin vida útil']],r,true)}
-  ${e?`<div class="card" style="margin-top:14px"><h3>Hoja de vida · ${e.id} · ${esc(e.equipo)}</h3><div class="ficha"><dl>
-  <dt>ESE</dt><dd>${e.ese} (${e.sub})</dd><dt>Marca / modelo</dt><dd>${e.marca} ${e.modelo}</dd><dt>Proveedor</dt><dd>${e.proveedor}</dd><dt>Estado</dt><dd>${estTag(e.estado)}</dd>
-  <dt>Adquisición</dt><dd>${e.adq}</dd><dt>Fin de garantía</dt><dd>${e.fgar}</dd><dt>Último mantenimiento</dt><dd>${e.umant}</dd><dt>Próximo mantenimiento</dt><dd>${e.pmant}</dd><dt>Fin de vida útil</dt><dd>${e.fvida}</dd></dl></div></div>`:'<p style="color:var(--mut)">Seleccione un equipo para ver su hoja de vida.</p>'}`;
-}
-function rep(){
-  const a=alertas(), m={mant:['Mantenimientos vencidos',a.mant,'pmant','Próx. mantenimiento'],gar:['Garantías por expirar',a.gar,'fgar','Fin de garantía'],vida:['Fin de vida útil',a.vida,'fvida','Fin de vida útil']}[S.rep];
-  const cnt={};INV.forEach(x=>cnt[x.estado]=(cnt[x.estado]||0)+1);
-  const sub={};INV.forEach(x=>sub[x.sub]=(sub[x.sub]||0)+1);const mx=Math.max(...Object.values(sub));
-  return `<div class="tabs">${Object.entries({mant:'Mantenimientos',gar:'Garantías',vida:'Vida útil'}).map(([k,v])=>`<button class="btn ${S.rep===k?'':'s'}" data-rep="${k}">${v} (${a[k].length})</button>`).join('')}</div>
-  <div class="card"><h3>${m[0]}</h3>${table([['id','ID'],['ese','ESE'],['equipo','Equipo'],[m[2],m[3]]],m[1])}<p><button class="btn s" id="dl">Descargar CSV</button></p></div>
-  <div class="grid g2" style="margin-top:14px"><div class="card"><h3>Estado operativo</h3>${Object.entries(cnt).map(([k,v])=>`<div>${k}: <b>${v}</b> (${Math.round(v/INV.length*100)}%)<div class="bar"><i style="width:${v/INV.length*100}%;background:${k==='Operativo'?'var(--g)':k==='En mantenimiento'?'var(--w)':'var(--r)'}"></i></div></div>`).join('<br>')}</div>
-  <div class="card"><h3>Equipos por subregión</h3>${Object.entries(sub).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`<div>${k}: <b>${v}</b><div class="bar"><i style="width:${v/mx*100}%"></i></div></div>`).join('')}</div></div>`;
-}
-function ese(){
-  const pr={Baja:'Alta',Media:'Media',Alta:'Baja'}, ord={Alta:0,Media:1,Baja:2};
-  const r=ESE.map(e=>{const l=INV.filter(x=>x.ese===e.ese);return {...e,n:l.length,no:l.filter(x=>x.estado!=='Operativo').length,pri:pr[e.cap]}}).sort((a,b)=>ord[a.pri]-ord[b.pri]);
-  return `<p>Caracterización de las ESE según su capacidad de gestión tecnológica. Las de capacidad baja (municipios dispersos) se priorizan para acompañamiento técnico.</p>
-  ${table([['ese','ESE'],['sub','Subregión'],['mun','Municipio'],['cap','Capacidad'],['n','Equipos'],['no','No operativos'],['pri','Prioridad de acompañamiento',v=>`<span class="tag ${v==='Alta'?'r':v==='Media'?'w':'ok'}">${v}</span>`]],r)}`;
+  <div class="note">Valores de referencia: no sustituyen los estudios de mercado ni los procesos de contratación. Esta herramienta es de consulta; no determina de manera obligatoria los equipos o proveedores que deban adquirir las ESE.</div>`;
 }
 function prov(){
   const m={};CAT.forEach(c=>{(m[c.proveedor]=m[c.proveedor]||{proveedor:c.proveedor,n:0,marcas:new Set(),serv:new Set()});const p=m[c.proveedor];p.n++;p.marcas.add(c.marca);p.serv.add(c.servicio)});
   const r=Object.values(m).map(p=>({...p,marcas:[...p.marcas].join(', '),serv:[...p.serv].join(', ')}));
-  return table([['proveedor','Proveedor'],['n','Equipos en catálogo'],['marcas','Marcas'],['serv','Servicios']],r);
+  return table([['proveedor','Proveedor'],['n','Alternativas en catálogo'],['marcas','Marcas'],['serv','Servicios']],r);
 }
 function cfg(){
   return `<div class="card" style="max-width:520px"><h3>Parámetros de alertas</h3><div class="filters" style="flex-direction:column">
   <label>Días de anticipación para alerta de garantía<input id="dg" type="number" min="7" max="120" value="${S.dg}"></label>
   <label>Años de anticipación para fin de vida útil<input id="av" type="number" min="0.5" max="3" step="0.5" value="${S.av}"></label>
   <label>Periodicidad de actualización de precios<select id="per">${['Mensual','Trimestral','Semestral'].map(o=>`<option ${o===S.per?'selected':''}>${o}</option>`).join('')}</select></label></div>
-  <p style="color:var(--mut);font-size:13px">Los cambios se aplican de inmediato en el Dashboard y en Reportes. En este piloto no se guardan al cerrar la página.</p></div>`;
+  <p style="color:var(--mut);font-size:13px">Los cambios se aplican de inmediato en las alertas del Dashboard. En este piloto no se guardan al cerrar la página.</p></div>`;
 }
 
 /* ---------- Render y eventos ---------- */
-const MENU=[['dash','Inicio','(Dashboard)','home'],['cat','Catálogo de Referencia','(Planeación)','grid'],['inv','Inventario de ESEs','(Seguimiento)','clip'],['rep','Reportes y Alertas','','bell'],['ese','Gestión de ESEs','','brief'],['prov','Proveedores','','users'],['cfg','Configuración','','gear']];
-const VIEW={dash,cat,inv,rep,ese,prov,cfg};
-const TIT={dash:'Tablero de Control y Alertas',cat:'Catálogo de Referencia Técnica y Económica',inv:'Inventario Departamental y Hoja de Vida',rep:'Reportes y Alertas',ese:'Gestión de ESEs',prov:'Proveedores Identificados',cfg:'Configuración'};
+const MENU=[['dash','Inicio','(Dashboard)','home'],['cat','Catálogo de Referencia','(Planeación)','grid'],['mat','Matriz de Dotación','(Estudio de mercado)','sheet'],['prov','Proveedores','','users'],['valid','Validación de Datos','(Calidad)','valid'],['reg','Registro de Equipos','(Catálogo)','reg'],['cfg','Configuración','','gear']];
+const VIEW={dash,cat,prov,cfg};
+const TIT={dash:'Tablero de Control y Alertas',cat:'Catálogo de Referencia Técnica y Económica',mat:'Matriz de Dotación Biomédica',prov:'Proveedores Identificados',valid:'Validación y Actualización de la Información',reg:'Registro de Equipos en el Catálogo',cfg:'Configuración'};
 function go(p){S.page=p;render();document.getElementById('main').scrollTop=0}
 function showFicha(c){document.getElementById('mbody').innerHTML=ficha(c);document.getElementById('modal').hidden=false;document.getElementById('mclose').focus()}
 function render(){
@@ -248,14 +243,13 @@ function render(){
   if(window._lm){window._lm.remove();window._lm=null}
   const m=MENU.find(x=>x[0]===S.page);
   document.getElementById('main').innerHTML=`<div class="crumb">${m[1]} ${m[2]}</div><h1>${TIT[S.page]}</h1>`+VIEW[S.page]();
-  document.getElementById('nbell').textContent=alertas().mant.length;
+  document.getElementById('nbell').textContent=(a=>a.gar.length+a.vida.length)(alertas());
   bind();
 }
 function bindCards(){document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>showFicha(S._dc[+b.dataset.f]))}
 function bind(){
   const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
-  $$('[data-go]').forEach(e=>{const f=()=>{const[p,r]=e.dataset.go.split(':');if(r)S.rep=r;go(p)};e.onclick=f;e.onkeydown=ev=>ev.key==='Enter'&&f()});
-  $$('[data-rep]').forEach(b=>b.onclick=()=>{S.rep=b.dataset.rep;render()});
+  $$('[data-mat]').forEach(b=>b.onclick=()=>{window.matPreset=b.dataset.mat;go('mat')});
   const keep=(id)=>{const el=document.getElementById(id);el&&el.focus();};
   if(S.page==='dash'){
     const upd=()=>{$('#cards').innerHTML=dashCards();bindCards()};
@@ -266,17 +260,14 @@ function bind(){
     $('#mic').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return alert('Tu navegador no soporta búsqueda por voz.');
       const r=new SR();r.lang='es-CO';r.onresult=e=>{S.dq=e.results[0][0].transcript;render()};r.start()};
   }
-  if(S.page==='cat'){['servicio','marca','invima','proveedor','pmax'].forEach(id=>{$('#'+id).onchange=e=>{S.fc[id]=e.target.value;S.sel=null;render()}});
+  if(S.page==='cat'){['servicio','equipo','marca','invima','proveedor','pmax'].forEach(id=>{$('#'+id).onchange=e=>{S.fc[id]=e.target.value;if(id==='servicio')S.fc.equipo='';S.sel=null;render()}});
     $$('tr.click').forEach(tr=>{const f=()=>{S.sel=+tr.dataset.i;render();document.getElementById('fch').scrollIntoView({behavior:'smooth',block:'nearest'})};tr.onclick=f;tr.onkeydown=e=>e.key==='Enter'&&f()});
     $('#dl').onclick=()=>csv('catalogo.csv',S._cat)}
-  if(S.page==='inv'){['ese','estado','servicio'].forEach(id=>{$('#'+id).onchange=e=>{S.fi[id]=e.target.value;S.selI=null;render()}});
-    $$('tr.click').forEach(tr=>{const f=()=>{S.selI=+tr.dataset.i;render()};tr.onclick=f;tr.onkeydown=e=>e.key==='Enter'&&f()})}
-  if(S.page==='rep'){$('#dl').onclick=()=>{const a=alertas();csv(S.rep+'.csv',a[S.rep])}}
   if(S.page==='cfg'){$('#dg').onchange=e=>{S.dg=Math.min(120,Math.max(7,+e.target.value||30));render()};$('#av').onchange=e=>{S.av=Math.min(3,Math.max(.5,+e.target.value||1));render()};$('#per').onchange=e=>{S.per=e.target.value}}
   document.querySelectorAll('#side [data-p]').forEach(b=>b.onclick=()=>go(b.dataset.p));
 }
 document.getElementById('collapse').onclick=()=>document.getElementById('side').classList.toggle('col');
-document.getElementById('bell').onclick=()=>{S.rep='mant';go('rep')};
+document.getElementById('bell').onclick=()=>go('dash');
 document.getElementById('mclose').onclick=()=>document.getElementById('modal').hidden=true;
 document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')e.target.hidden=true};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('modal').hidden=true});
